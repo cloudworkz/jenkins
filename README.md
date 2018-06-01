@@ -1,4 +1,7 @@
-# Jenkins Setup
+# Google Cloud Jenkins
+
+[![Docker Repository on Quay](https://quay.io/repository/google-cloud-tools/jenkins-agent/status "Docker Repository on Quay")](https://quay.io/repository/google-cloud-tools/jenkins-agent)
+[![Docker Repository on Quay](https://quay.io/repository/google-cloud-tools/jenkins-agent/status "Docker Repository on Quay")](https://quay.io/repository/google-cloud-tools/jenkins-agent)
 
 Full featured and ready to use Jenkins Setup in the Google Cloud Kubernetes Engine.
 
