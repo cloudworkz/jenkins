@@ -1,0 +1,300 @@
+# This is just sample configuration
+# please replace "google-cloud-tools" with your team/organisation name
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: jenkins
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: "google-cloud-tools-jenkins"
+  namespace: "jenkins"
+---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: RoleBinding
+metadata:
+  name: "google-cloud-tools-jenkins"
+  namespace: "jenkins"
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: admin
+subjects:
+- kind: ServiceAccount
+  name: "google-cloud-tools-jenkins"
+  namespace: "jenkins"
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: "google-cloud-tools-jenkins"
+  namespace: "jenkins"
+  labels:
+    app: "google-cloud-tools-jenkins"
+spec:
+  serviceName: "google-cloud-tools-jenkins"
+  replicas: 1
+  updateStrategy:
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      app: "google-cloud-tools-jenkins"
+  template:
+    metadata:
+      name: "google-cloud-tools-jenkins"
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8080"
+        prometheus.io/path: "/prometheus"
+      labels:
+        app: "google-cloud-tools-jenkins"
+    spec:
+      securityContext:
+        fsGroup: 1000
+      terminationGracePeriodSeconds: 10
+      serviceAccountName: "google-cloud-tools-jenkins"
+      nodeSelector:
+        cloud.google.com/gke-nodepool: "default-nodepool"
+
+      containers:
+        - name: jenkins
+          image: quay.io/google-cloud-tools/jenkins
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8080
+              name: http
+            - containerPort: 50000
+              name: slavelistener
+          resources:
+            limits:
+              cpu: 2
+              memory: 2Gi
+            requests:
+              cpu: 1
+              memory: 512Mi
+          env:
+            - name: JENKINS_NAME
+              value: "google-cloud-tools"
+            - name: JENKINS_URL
+              value: "http://google-cloud-tools-jenkins:8080"
+            - name: JENKINS_AGENT_URL
+              value: "google-cloud-tools-jenkins-agent:50000"
+            - name: JENKINS_HOME
+              value: /var/jenkins_home
+            - name: JENKINS_AGENT_IMAGE
+              value: quay.io/google-cloud-tools/jenkins-agent
+            - name: JENKINS_AGENT_NODE_SELECTOR
+              value: "default-nodepool"
+            - name: JENKINS_AGENT_REQUEST_CPU
+              value: "0.2"
+            - name: JENKINS_AGENT_REQUEST_MEMORY
+              value: "512Mi"
+            - name: JENKINS_AGENT_LIMIT_CPU
+              value: "1"
+            - name: JENKINS_AGENT_LIMIT_MEMORY
+              value: "512Mi"
+            - name: JENKINS_ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: "google-cloud-tools-jenkins"
+                  key: password
+            - name: JENKINS_ADMIN_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: "google-cloud-tools-jenkins"
+                  key: username
+            - name: NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: LIMITS_MEMORY
+              valueFrom:
+                resourceFieldRef:
+                  resource: limits.memory
+                  divisor: 1Mi
+            - name: JAVA_OPTS
+              value: -Xmx$(LIMITS_MEMORY)m -Dhudson.slaves.NodeProvisioner.initialDelay=0 -Dhudson.slaves.NodeProvisioner.MARGIN=50 -Dhudson.slaves.NodeProvisioner.MARGIN0=0.85 -Djenkins.install.runSetupWizard=false
+            - name: PROMETHEUS_ENDPOINT
+              value: prometheus
+            - name: PROMETHEUS_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: JENKINS_SEED_REPO
+              value: "git@github.com:google-cloud-tools/jenkins-setup.git"
+            - name: JENKINS_SEED_TARGET
+              value: "Seed.groovy"
+            - name: JENKINS_GIT_NAME
+              value: "google-cloud-tools"
+            - name: JENKINS_GIT_EMAIL
+              value: "jenkins@google-cloud-tools.com"
+            - name: JENKINS_GIT_CREDENTIALS_ID
+              value: global-scm-key-credentials
+            - name: JENKINS_GIT_PRIVATE_SSH_KEY_PATH
+              value: /etc/secrets/jenkins/ssh/private
+            - name: JENKINS_GIT_PUBLIC_SSH_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: "ssh-keys-google-cloud-tools-jenkins"
+                  key: public
+            - name: GOOGLE_PROJECT_ID
+              value: google-cloud-tools
+            - name: SERVICE_ACCOUNT_CREDENTIALS_ID
+              value: google-cloud-tools-credentials
+            - name: SERVICE_ACCOUNT_CREDENTIALS_PATH
+              value: /etc/secrets/jenkins/sa/credentials.json
+            - name: GOOGLE_AUTH_ENABLED
+              value: "true"
+            - name: GOOGLE_AUTH_ALLOWED_DOMAIN
+              value: google-cloud-tools.com
+            - name: GOOGLE_AUTH_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: "google-auth-credentials-google-cloud-tools-jenkins"
+                  key: client_id
+            - name: GOOGLE_AUTH_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: "google-auth-credentials-google-cloud-tools-jenkins"
+                  key: client_secret
+            - name: GOOGLE_ADMIN_ENABLED
+              value: "true"
+            - name: GOOGLE_ADMIN_ACCOUNT_EMAIL
+              value: admin@google-cloud-tools.com
+            - name: GOOGLE_ADMIN_CLIENT_SECRET_FILE
+              value: /etc/secrets/jenkins/admin/credentials.json
+            - name: GOOGLE_ADMIN_READ_GROUP_EMAIL
+              value: "dev-team@google-cloud-tools.com"
+          volumeMounts:
+            - name: jenkins-home
+              mountPath: /var/jenkins_home
+              readOnly: false
+            - name: jenkins-jobs
+              mountPath: /var/jenkins_home/jobs
+              readOnly: false
+            - name: jenkins-logs
+              mountPath: /var/jenkins_home/logs
+              readOnly: false
+            - name: "ssh-keys-google-cloud-tools-jenkins"
+              readOnly: true
+              mountPath: "/etc/secrets/jenkins/ssh"
+            - name: "sa-credentials-google-cloud-tools-jenkins"
+              readOnly: true
+              mountPath: "/etc/secrets/jenkins/sa"
+            - name: google-admin-api-credentials
+              readOnly: true
+              mountPath: "/etc/secrets/jenkins/admin"
+          livenessProbe:
+            httpGet:
+              path: /login
+              port: 8080
+            initialDelaySeconds: 60
+            timeoutSeconds: 5
+            failureThreshold: 12
+          readinessProbe:
+            httpGet:
+              path: /login
+              port: 8080
+            initialDelaySeconds: 60
+            timeoutSeconds: 5
+            failureThreshold: 12
+
+      volumes:
+      - name: "ssh-keys-google-cloud-tools-jenkins"
+        secret:
+          secretName: "ssh-keys-google-cloud-tools-jenkins"
+      - name: "sa-credentials-google-cloud-tools-jenkins"
+        secret:
+          secretName: "sa-credentials-google-cloud-tools-jenkins"
+      - name: google-admin-api-credentials
+        secret:
+          secretName: google-admin-api-credentials
+      - name: jenkins-home
+        emptyDir: {}
+
+  volumeClaimTemplates:
+  - metadata:
+      name: jenkins-jobs
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      resources:
+        requests:
+          storage: 1Gi
+  - metadata:
+      name: jenkins-logs
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      resources:
+        requests:
+          storage: 1Gi
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: "google-cloud-tools-jenkins"
+  namespace: "jenkins"
+spec:
+  selector:
+    app: "google-cloud-tools-jenkins"
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080
+      protocol: TCP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: "google-cloud-tools-jenkins-agent"
+  namespace: "jenkins"
+spec:
+  selector:
+    app: "google-cloud-tools-jenkins"
+  type: ClusterIP
+  ports:
+    - name: agent
+      port: 50000
+      targetPort: 50000
+      protocol: TCP
+
+---
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: "google-cloud-tools-jenkins"
+  namespace: "jenkins"
+  annotations:
+    kubernetes.io/tls-acme: "true"
+    kubernetes.io/ingress.class: "nginx"
+    ingress.kubernetes.io/force-ssl-redirect: "true"
+    ingress.kubernetes.io/from-to-www-redirect: "true"
+    ingress.kubernetes.io/ssl-redirect: "true"
+    ingress.kubernetes.io/proxy-body-size: 50m
+    ingress.kubernetes.io/proxy-request-buffering: "off"
+    ingress.kubernetes.io/server-snippet: |
+      ignore_invalid_headers off;
+    ingress.kubernetes.io/configuration-snippet: |
+      server_tokens off;
+      add_header X-Frame-Options SAMEORIGIN always;
+      add_header X-Content-Type-Options nosniff always;
+      add_header X-XSS-Protection "1; mode=block" always;
+      add_header 'Referrer-Policy' 'strict-origin-when-cross-origin';
+      add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; img-src 'self' data:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; object-src 'none'" always;
+
+spec:
+  tls:
+  - hosts:
+    - "jenkins.google-cloud-tools.com"
+    secretName: "jenkins-tls"
+  rules:
+  - host: "jenkins.google-cloud-tools.com"
+    http:
+      paths:
+      - path: /
+        backend:
+          serviceName: "jenkins"
+          servicePort: 8080
