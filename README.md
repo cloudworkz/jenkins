@@ -1,5 +1,6 @@
 # Google Cloud Jenkins
 
+[![license](https://img.shields.io/github/license/google-cloud-tools/jenkins.svg?maxAge=604800)](https://github.com/google-cloud-tools/jenkins)
 [![Docker Repository on Quay](https://quay.io/repository/google-cloud-tools/jenkins-agent/status "Docker Repository on Quay")](https://quay.io/repository/google-cloud-tools/jenkins-agent)
 [![Docker Repository on Quay](https://quay.io/repository/google-cloud-tools/jenkins-agent/status "Docker Repository on Quay")](https://quay.io/repository/google-cloud-tools/jenkins-agent)
 
