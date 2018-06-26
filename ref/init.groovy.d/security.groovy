@@ -9,6 +9,7 @@ import hudson.util.Secret
 import com.cloudbees.plugins.credentials.*
 import org.jenkinsci.plugins.googlelogin.GoogleOAuth2SecurityRealm
 import org.jenkinsci.plugins.googleadmin.GoogleAdminService
+import javaposse.jobdsl.plugin.GlobalJobDslSecurityConfiguration
 
 try {
     println '===> Configure Admin Credentials...'
@@ -22,6 +23,12 @@ try {
     instance.setAuthorizationStrategy(strategy)
     instance.save()
     Jenkins.instance.getInjector().getInstance(AdminWhitelistRule.class).setMasterKillSwitch(false)
+    // This token will be used to call prestop script
+    User u = User.get("admin")
+    ApiTokenProperty t = u.getProperty(ApiTokenProperty.class)
+    def apiToken = t.getApiTokenInsecure()
+    def authTokenFile = new File("${System.getenv("JENKINS_HOME")}/.api_token")
+    authTokenFile.write "$apiToken"
     println("===> Configuring Admin Credentials completed")
 
     if ("${System.getenv("GOOGLE_AUTH_ENABLED")}" == "true") {
@@ -72,6 +79,9 @@ try {
                     authAtrategy.add(Computer.CONNECT, "${it}")
                     authAtrategy.add(Computer.DISCONNECT, "${it}")
                     authAtrategy.add(CredentialsProvider.VIEW, "${it}")
+                    authAtrategy.add(Job.BUILD, "${it}")
+                    authAtrategy.add(Job.READ, "${it}")
+                    authAtrategy.add(Job.CANCEL, "${it}")
                     authAtrategy.add(View.READ, "${it}")
                 }
             }
@@ -81,6 +91,14 @@ try {
         Jenkins.instance.setAuthorizationStrategy(authAtrategy)
         Jenkins.instance.save()
         println("===> Configuring Google Auth Login completed")
+
+        def globalConfiguration = GlobalConfiguration.all().get(GlobalJobDslSecurityConfiguration.class)
+        if ("${System.getenv("JENKINS_USE_SCRIPT_SECURITY")}" == "true") {
+            globalConfiguration.useScriptSecurity = true
+        } else {
+            globalConfiguration.useScriptSecurity = false
+        }
+        globalConfiguration.save()
     }
 }
 catch(Exception e) {

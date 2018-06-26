@@ -97,6 +97,10 @@ try {
     Jenkins.instance.setMarkupFormatter(new RawHtmlMarkupFormatter(false))
     Jenkins.instance.save()
 
+    def jenkinsLocationConfiguration = JenkinsLocationConfiguration.get()
+    jenkinsLocationConfiguration.setAdminAddress(System.getenv("JENKINS_EMAIL"))
+    jenkinsLocationConfiguration.save()
+
     println("===> Configuring defaults completed")
 }
 catch(Exception e) {

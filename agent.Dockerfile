@@ -21,12 +21,16 @@ ENV \
     CLOUDSDK_PYTHON_SITEPACKAGES=1 \
     GCLOUD_COMPONENTS="kubectl alpha beta gcd-emulator cloud-datastore-emulator bigtable" \
     DEBIAN_FRONTEND=noninteractive \
+    ### Scala
+    SCALA_VERSION=2.11.12 \
+    SBT_VERSION=1.1.6 \
     ### Defaults
     PATH=${PATH}:${JAVA_HOME}/bin:${MAVEN_HOME}/bin:${GCLOUD_HOME}/bin
 
 USER root
-
 RUN set -ex; \
+    ### Add docker group with id 412 and add jenkins user to it
+    groupadd docker; groupmod -g 412 docker; usermod -aG docker jenkins; \
     ### Install JDK
     curl -jksSLH "Cookie: oraclelicense=accept-securebackup-cookie" \
     http://download.oracle.com/otn-pub/java/jdk/${JAVA_VERSION_MAJOR}u${JAVA_VERSION_MINOR}-b${JAVA_VERSION_BUILD}/${JAVA_DOWNLOAD_HASH}/${JAVA_PACKAGE}-${JAVA_VERSION_MAJOR}u${JAVA_VERSION_MINOR}-linux-x64.tar.gz \
@@ -35,26 +39,26 @@ RUN set -ex; \
     ln -s /opt/${JAVA_PACKAGE}1.${JAVA_VERSION_MAJOR}.0_${JAVA_VERSION_MINOR} /opt/jdk; \
     \
     rm -rf /opt/jdk/*src.zip \
-        /opt/jdk/lib/missioncontrol \
-        /opt/jdk/lib/visualvm \
-        /opt/jdk/lib/*javafx* \
-        /opt/jdk/db \
-        /opt/jdk/jre/lib/plugin.jar \
-        /opt/jdk/jre/lib/ext/jfxrt.jar \
-        /opt/jdk/jre/bin/javaws \
-        /opt/jdk/jre/lib/javaws.jar \
-        /opt/jdk/jre/lib/desktop \
-        /opt/jdk/jre/plugin \
-        /opt/jdk/jre/lib/deploy* \
-        /opt/jdk/jre/lib/*javafx* \
-        /opt/jdk/jre/lib/*jfx* \
-        /opt/jdk/jre/lib/amd64/libdecora_sse.so \
-        /opt/jdk/jre/lib/amd64/libprism_*.so \
-        /opt/jdk/jre/lib/amd64/libfxplugins.so \
-        /opt/jdk/jre/lib/amd64/libglass.so \
-        /opt/jdk/jre/lib/amd64/libgstreamer-lite.so \
-        /opt/jdk/jre/lib/amd64/libjavafx*.so \
-        /opt/jdk/jre/lib/amd64/libjfx*.so; \
+    /opt/jdk/lib/missioncontrol \
+    /opt/jdk/lib/visualvm \
+    /opt/jdk/lib/*javafx* \
+    /opt/jdk/db \
+    /opt/jdk/jre/lib/plugin.jar \
+    /opt/jdk/jre/lib/ext/jfxrt.jar \
+    /opt/jdk/jre/bin/javaws \
+    /opt/jdk/jre/lib/javaws.jar \
+    /opt/jdk/jre/lib/desktop \
+    /opt/jdk/jre/plugin \
+    /opt/jdk/jre/lib/deploy* \
+    /opt/jdk/jre/lib/*javafx* \
+    /opt/jdk/jre/lib/*jfx* \
+    /opt/jdk/jre/lib/amd64/libdecora_sse.so \
+    /opt/jdk/jre/lib/amd64/libprism_*.so \
+    /opt/jdk/jre/lib/amd64/libfxplugins.so \
+    /opt/jdk/jre/lib/amd64/libglass.so \
+    /opt/jdk/jre/lib/amd64/libgstreamer-lite.so \
+    /opt/jdk/jre/lib/amd64/libjavafx*.so \
+    /opt/jdk/jre/lib/amd64/libjfx*.so; \
     \
     ### Install maven
     mkdir -p ${MAVEN_HOME}; \
@@ -62,16 +66,33 @@ RUN set -ex; \
     echo "${MAVEN_MD5_CHECKSUM} ${MAVEN_DL_TMP_FILE}" | md5sum -c -; \
     tar -xzf ${MAVEN_DL_TMP_FILE} -C ${MAVEN_HOME} --strip-components=1; \
     rm -f ${MAVEN_DL_TMP_FILE}; \
+    ln -s ${MAVEN_HOME}/bin/mvn /bin/mvn; \
     \
-    ### Install google cloud SDK
+    ### Install Scala
+    curl -SLs "http://www.scala-lang.org/files/archive/scala-${SCALA_VERSION}.deb" -o scala.deb; \
+    dpkg -i scala.deb; \
+    rm scala.deb; \
+    \
+    ### Install Sbt
+    curl -SLs "https://dl.bintray.com/sbt/debian/sbt-${SBT_VERSION}.deb" -o sbt.deb; \
+    dpkg -i sbt.deb; \
+    rm sbt.deb; \
+    ### Additional packages
     apt-get update; \
-    apt-get install -y -qq --no-install-recommends wget zip unzip python python-dev python-pip build-essential openssh-client python-openssl jq; \
+    apt-get install -y -qq --no-install-recommends zip unzip python python-dev python-pip build-essential openssh-client python-openssl jq net-tools sbt; \
     apt-get clean; \
+    sbt sbtVersion; \
+    ln -s /usr/bin/sbt /bin/sbt; \
+    ### Install google cloud SDK
     cd /opt; \
-    wget https://dl.google.com/dl/cloudsdk/channels/rapid/google-cloud-sdk.zip; \
+    curl -SLs https://dl.google.com/dl/cloudsdk/channels/rapid/google-cloud-sdk.zip -o google-cloud-sdk.zip; \
     unzip google-cloud-sdk.zip; \
     rm google-cloud-sdk.zip; \
     google-cloud-sdk/install.sh --usage-reporting=false --rc-path=/.bashrc --additional-components ${GCLOUD_COMPONENTS}; \
-    pip install --upgrade google-api-python-client google-auth-httplib2 google-cloud;
+    pip install --upgrade google-api-python-client google-auth-httplib2 google-cloud; \
+    ln -s ${GCLOUD_HOME}/bin/gcloud /bin/gcloud;
+
+COPY java-security/* /opt/jdk/lib/security/
+COPY maven/settings.xml ${MAVEN_HOME}/conf/
 
 USER jenkins

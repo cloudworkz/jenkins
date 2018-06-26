@@ -1,8 +1,29 @@
-import java.util.logging.ConsoleHandler
-import java.util.logging.FileHandler
-import java.util.logging.SimpleFormatter
-import java.util.logging.LogManager
-import jenkins.model.Jenkins
+import jenkins.model.*
+import java.net.URI
+import com.cloudbees.syslog.sender.UdpSyslogMessageSender
+import jenkins.plugins.logstash.*
+import jenkins.plugins.logstash.persistence.*
+import jenkins.plugins.logstash.configuration.*
+import com.cloudbees.syslog.MessageFormat;
+import jenkins.plugins.logstash.persistence.LogstashIndexerDao.SyslogProtocol;
+import hudson.tools.ToolProperty
 
-def Logger = LogManager.getLogManager().getLogger("hudson.WebAppMain")
-Logger.addHandler(new ConsoleHandler())
+try {
+    if ("${System.getenv("LOGGING_ENABLED")}" == "true") {
+        println("===> Configuring logstash...")
+        def config = GlobalConfiguration.all().get(LogstashConfiguration.class)
+        ElasticSearch elastic = new ElasticSearch();
+        URL url = new URL(System.getenv("LOGGING_URL"))
+        elastic.setUri(url.toURI());
+
+        config.setLogstashIndexer(elastic);
+        config.setEnableGlobally(true);
+        config.save();
+
+        println("===> Configuring logstash completed")
+    }
+}
+catch(Exception e) {
+    println "===> Failed to configure logstash: " + e
+    System.exit(1)
+}

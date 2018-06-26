@@ -5,6 +5,7 @@ ant
 antisamy-markup-formatter
 authentication-tokens
 block-queued-job
+blueocean
 bouncycastle-api
 branch-api
 build-pipeline-plugin
@@ -16,6 +17,7 @@ config-file-provider
 copyartifact
 credentials
 credentials-binding
+dashboard-view
 delivery-pipeline-plugin
 deployment-notification
 description-setter
@@ -24,7 +26,7 @@ docker-commons
 docker-workflow
 downstream-ext
 durable-task
-embeddable-build-status 
+embeddable-build-status
 envinject
 external-monitor-job
 findbugs
@@ -36,6 +38,7 @@ github
 github-api
 github-branch-source
 github-organization-folder
+google-admin-sdk
 google-deployment-manager
 google-login
 google-metadata-plugin
@@ -44,6 +47,7 @@ google-source-plugin
 gradle
 handlebars
 hipchat
+html5-notifier-plugin
 icon-shim
 javadoc
 job-dsl
@@ -52,6 +56,7 @@ jquery
 jquery-detached
 junit
 kubernetes
+logstash
 mailer
 mapdb-api
 matrix-auth
@@ -83,6 +88,7 @@ pmd
 prometheus
 promoted-builds
 run-condition
+sbt
 scm-api
 script-security
 seed
@@ -92,8 +98,10 @@ ssh-slaves
 startup-trigger-plugin
 structs
 throttle-concurrents
+timestamper
 token-macro
 translation
+view-job-filters
 workflow-aggregator
 workflow-api
 workflow-basic-steps

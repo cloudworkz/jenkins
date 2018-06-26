@@ -50,13 +50,21 @@ try {
     // podTemplate.setInheritFrom("")
     // podTemplate.setSlaveConnectTimeout(0)
     if(agentNodeSelector) {
-        podTemplate.setNodeSelector(agentNodeSelector)
+        // podTemplate.setNodeSelector(agentNodeSelector)
+        podTemplate.setYaml("""
+apiVersion: v1
+kind: Pod
+spec:
+  restartPolicy: Never
+  nodeSelector:
+    cloud.google.com/gke-nodepool: ${namespace}
+            """)
     }
-    podTemplate.setCommand(null)
+    podTemplate.setCommand("")
     podTemplate.setInstanceCapStr('10')
     podTemplate.setIdleMinutesStr('30')
     podTemplate.setNodeUsageMode('NORMAL')
-    // podTemplate.setWorkspaceVolume(new EmptyDirWorkspaceVolume(false))
+    podTemplate.setWorkspaceVolume(new EmptyDirWorkspaceVolume(false))
 
     def volumes = []
     volumes << new HostPathVolume("/usr/bin/docker", "/usr/bin/docker")
@@ -68,15 +76,17 @@ try {
     podTemplate.setEnvVars(envVars)
 
     ContainerTemplate ct = new ContainerTemplate("jnlp", agentImage)
-    ct.setAlwaysPullImage(true)
+    ct.setAlwaysPullImage(false) // we use build label in deployment
     ct.setPrivileged(false)
-    ct.setTtyEnabled(true)
+    ct.setTtyEnabled(false)
     ct.setWorkingDir("/home/jenkins")
     ct.setArgs('${computer.jnlpmac} ${computer.name}')
     ct.setResourceRequestCpu(agentRequestCpu)
     ct.setResourceLimitCpu(agentLimitCpu)
     ct.setResourceRequestMemory(agentRequestMemory)
     ct.setResourceLimitMemory(agentLimitMemory)
+    ContainerLivenessProbe lp = new ContainerLivenessProbe("netstat -tan | grep ESTABLISHED", 10, 60, 3, 15, 1)
+    ct.setLivenessProbe(lp)
     podTemplate.setContainers([ct])
     kc.templates << podTemplate
     kc = null
